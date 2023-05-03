@@ -64,23 +64,21 @@ def load_audio_wav(audio_wav_path, transform=None):
 
 class S4Dataset(Dataset):
     """Dataset for single sound source segmentation"""
-    def __init__(self, split='train'):
+    def __init__(self, split='train', use_audioset=False):
         super(S4Dataset, self).__init__()
         self.split = split
         self.mask_num = 1 if self.split == 'train' else 5
         df_all = pd.read_csv(cfg.DATA.ANNO_CSV, sep=',')
         self.df_split = df_all[df_all['split'] == split]
         print("{}/{} videos are used for {}".format(len(self.df_split), len(df_all), self.split))
-        self.categories = set([])
-        for df_one_video in self.df_split.iloc:
-            category = df_one_video[2]
-            category = category.replace('_', ' ')
-            category = category.replace('-', ' ')
-            self.categories.add(category)
-        self.categories = list(self.categories)
-        json_dir = cfg.DATA.DIR_BASE + "/category.json"
-        with open(json_dir,'w') as f:
-            json.dump(self.categories, f)
+        
+        if use_audioset:
+            json_dir = cfg.DATA.DIR_JSON + "/audioset.json"
+        else:
+            json_dir = cfg.DATA.DIR_JSON + "/avsset.json"
+            
+        with open(json_dir,'rb') as f:
+            self.categories = json.load(f)
         print("category number:", len(self.categories))
 
 

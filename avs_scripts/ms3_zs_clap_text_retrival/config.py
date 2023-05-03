@@ -30,7 +30,7 @@ cfg.TRAIN.PRETRAINED_S4_AVS_WITH_TPAVI_PATH = "../avs_s4/train_logs/checkpoints/
 ###############################
 # DATA
 cfg.DATA = edict()
-cfg.DATA.DIR_BASE = "../../avsbench_data"
+cfg.DATA.DIR_JSON = "../../category_list"
 cfg.DATA.ANNO_CSV = "../../avsbench_data//Multi-sources/ms3_meta_data.csv"
 cfg.DATA.DIR_IMG = "../../avsbench_data//Multi-sources/ms3_data/visual_frames"
 cfg.DATA.DIR_AUDIO_LOG_MEL = "../../avsbench_data//Multi-sources/ms3_data/audio_log_mel"

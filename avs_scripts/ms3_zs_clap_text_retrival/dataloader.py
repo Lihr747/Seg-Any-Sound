@@ -58,7 +58,7 @@ def load_audio_wav(audio_wav_path, transform=None):
 
 class MS3Dataset(Dataset):
     """Dataset for multiple sound source segmentation"""
-    def __init__(self, split='train'):
+    def __init__(self, split='train', use_audioset=False):
         super(MS3Dataset, self).__init__()
         self.split = split
         self.mask_num = 5
@@ -73,7 +73,10 @@ class MS3Dataset(Dataset):
             transforms.ToTensor(),
         ])
 
-        json_path = cfg.DATA.DIR_BASE + "/category.json"
+        if use_audioset:
+            json_path = cfg.DATA.DIR_JSON + "/audioset.json"
+        else:
+            json_path = cfg.DATA.DIR_JSON + "/avsset.json"
         with open(json_path,'r') as f:
             self.categories = json.load(f)
         print("category number:", len(self.categories))         

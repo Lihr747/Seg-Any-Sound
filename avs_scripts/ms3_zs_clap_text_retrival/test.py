@@ -100,11 +100,12 @@ if __name__ == "__main__":
     parser.add_argument("--text_ret_num", default=2, type=int)
     parser.add_argument("--dino_text_threshold", default=0.25, type=float)
     parser.add_argument("--dino_box_threshold", default=0.3, type=float)
+    parser.add_argument("--use_audioset", action='store_true', help="Whether to run training.")
 
     # Test data
     args = parser.parse_args()
     split = 'test'
-    test_dataset = MS3Dataset(split)
+    test_dataset = MS3Dataset(split, args.use_audioset)
     test_dataloader = torch.utils.data.DataLoader(test_dataset,
                                                         batch_size=args.test_batch_size,
                                                         shuffle=False,
@@ -143,38 +144,38 @@ if __name__ == "__main__":
                 scores = probs[:, 0]
                 conf, indices = scores.topk(args.text_ret_num)
 
-                text_prompt = categories[indices[0]]
-
-                if indices.shape[0] > 1 :
-                    for j in range(1, indices.shape[0]):
-                        text_prompt = text_prompt + " and " + categories[indices[j]]
-
                 pred_mask = torch.zeros((H, W)).to(device)
                 image_source, image = load_image(image_path)
-                boxes, logits, phrases = predict(
-                        model=groundingdino_model, 
-                        image=image, 
-                        caption=text_prompt, 
-                        box_threshold=args.dino_box_threshold, 
-                        text_threshold=args.dino_text_threshold
-                )
+                all_boxes = []
 
-                if boxes.shape[0] != 0 and boxes.shape[1] != 0:
-                    annotated_frame = annotate(image_source=image_source, boxes=boxes, logits=logits, phrases=phrases)
-                    annotated_frame = annotated_frame[...,::-1]
+                for j in range(indices.shape[0]):
+                    text_prompt = categories[indices[j]]
 
+                    boxes, logits, phrases = predict(
+                            model=groundingdino_model, 
+                            image=image, 
+                            caption=text_prompt, 
+                            box_threshold=args.dino_box_threshold, 
+                            text_threshold=args.dino_text_threshold
+                    )
+
+                    if boxes.shape[0] != 0 and boxes.shape[1] != 0:
+                        all_boxes.append(boxes)
+
+                if len(all_boxes) != 0:
+                    all_boxes = torch.cat(all_boxes, dim=0)
                     sam_predictor.set_image(image_source)
 
                     H, W, _ = image_source.shape
-                    boxes_xyxy = box_ops.box_cxcywh_to_xyxy(boxes) * torch.Tensor([W, H, W, H])
+                    boxes_xyxy = box_ops.box_cxcywh_to_xyxy(all_boxes) * torch.Tensor([W, H, W, H])
 
                     transformed_boxes = sam_predictor.transform.apply_boxes_torch(boxes_xyxy, image_source.shape[:2]).to(device)
                     sam_masks, _, _ = sam_predictor.predict_torch(
-                                    point_coords = None,
-                                    point_labels = None,
-                                    boxes = transformed_boxes,
-                                    multimask_output = False,
-                        )
+                                        point_coords = None,
+                                        point_labels = None,
+                                        boxes = transformed_boxes,
+                                        multimask_output = False,
+                            )
 
                     for k in range(sam_masks.shape[0]):
                         sam_mask = sam_masks[k].reshape(H, W).to(torch.float32).to(device)

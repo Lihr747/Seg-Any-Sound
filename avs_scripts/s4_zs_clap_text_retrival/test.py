@@ -102,11 +102,12 @@ if __name__ == "__main__":
     parser.add_argument("--dino_text_threshold", default=0.25, type=float)
     parser.add_argument("--dino_box_threshold", default=0.3, type=float)
     parser.add_argument('--save_path', default='../../avsbench_data/save_masks/s4_clap_text_retrival', type=str)
+    parser.add_argument("--use_audioset", action='store_true', default=False, help="Whether to run training.")
 
     # Test data
     args = parser.parse_args()
     split = 'test'
-    test_dataset = S4Dataset(split)
+    test_dataset = S4Dataset(split, args.use_audioset)
     test_dataloader = torch.utils.data.DataLoader(test_dataset,
                                                         batch_size=args.test_batch_size,
                                                         shuffle=False,
@@ -143,30 +144,31 @@ if __name__ == "__main__":
                 probs = text_features @ audio_features.T
                 scores = probs[:, 0]
                 conf, indices = scores.topk(args.text_ret_num)
-                text_prompt = categories[indices[0]]
+
                 pred_mask = torch.zeros((H, W)).to(device)
-
-                if indices.shape[0] > 1 :
-                    for j in range(1, indices.shape[0]):
-                        another_prompt = categories[indices[j]]
-                        text_prompt = text_prompt + " and " + another_prompt
-
                 image_source, image = load_image(image_path)
-                boxes, logits, phrases = predict(
-                        model=groundingdino_model, 
-                        image=image, 
-                        caption=text_prompt, 
-                        box_threshold=args.dino_box_threshold, 
-                        text_threshold=args.dino_text_threshold
-                )
+                all_boxes = []
 
-                if boxes.shape[0] != 0 and boxes.shape[1] != 0:
-                    annotated_frame = annotate(image_source=image_source, boxes=boxes, logits=logits, phrases=phrases)
-                    annotated_frame = annotated_frame[...,::-1]
+                for j in range(indices.shape[0]):
+                    text_prompt = categories[indices[j]]
+
+                    boxes, logits, phrases = predict(
+                            model=groundingdino_model, 
+                            image=image, 
+                            caption=text_prompt, 
+                            box_threshold=args.dino_box_threshold, 
+                            text_threshold=args.dino_text_threshold
+                    )
+
+                    if boxes.shape[0] != 0 and boxes.shape[1] != 0:
+                        all_boxes.append(boxes)
+
+                if len(all_boxes) != 0:
+                    all_boxes = torch.cat(all_boxes, dim=0)
                     sam_predictor.set_image(image_source)
 
                     H, W, _ = image_source.shape
-                    boxes_xyxy = box_ops.box_cxcywh_to_xyxy(boxes) * torch.Tensor([W, H, W, H])
+                    boxes_xyxy = box_ops.box_cxcywh_to_xyxy(all_boxes) * torch.Tensor([W, H, W, H])
 
                     transformed_boxes = sam_predictor.transform.apply_boxes_torch(boxes_xyxy, image_source.shape[:2]).to(device)
                     sam_masks, _, _ = sam_predictor.predict_torch(
@@ -191,6 +193,7 @@ if __name__ == "__main__":
             avg_meter_miou.add({'miou': miou})
             F_score = Eval_Fmeasure(pred_masks, masks, args.save_path)
             avg_meter_F.add({'F_score': F_score})
+            print(category_list)
             print('n_iter: {}, iou: {}, F_score: {}'.format(n_iter, miou, F_score))
             # /home/yujr/workstation/Audio-Visual-Seg/avsbench_data/train_logs/aclp_s4_logs/S4_train_fully_audiocliprealfpn_visual_training_Adam0.0001_lr_mult.sh_20230331-064343/checkpoints/S4_train_fully_audiocliprealfpn_visual_training_Adam0.0001_lr_mult.sh_best.pth
 
