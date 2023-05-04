@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 import numpy as np
 import pandas as pd
 import pickle
+import json
 
 import cv2
 from PIL import Image
@@ -67,13 +68,11 @@ class S4Dataset(Dataset):
         df_all = pd.read_csv(cfg.DATA.ANNO_CSV, sep=',')
         self.df_split = df_all[df_all['split'] == split]
         print("{}/{} videos are used for {}".format(len(self.df_split), len(df_all), self.split))
-        self.categories = set([])
-        for df_one_video in self.df_split.iloc:
-            category = df_one_video[2]
-            category = category.replace('_', ' ')
-            category = category.replace('-', ' ')
-            category = "A photo of " + category
-            self.categories.add(category)
+
+        json_path = cfg.DATA.DIR_JSON + "/avsset.json"
+        with open(json_path,'r') as f:
+            self.categories = json.load(f)
+
         print("category number:", len(self.categories))
 
 

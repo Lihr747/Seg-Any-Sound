@@ -25,6 +25,7 @@ cfg.TRAIN.PRETRAINED_PVTV2_PATH = "../../pretrained_backbones/pvt_v2_b5.pth"
 ###############################
 # DATA
 cfg.DATA = edict()
+cfg.DATA.DIR_JSON = "../../category_list"
 cfg.DATA.ANNO_CSV = "../../avsbench_data/Single-source/s4_meta_data.csv"
 cfg.DATA.DIR_IMG = "../../avsbench_data/Single-source/s4_data/visual_frames"
 cfg.DATA.DIR_AUDIO_LOG_MEL = "../../avsbench_data/Single-source/s4_data/audio_log_mel"
